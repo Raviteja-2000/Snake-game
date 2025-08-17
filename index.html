@@ -1,24 +1,90 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Snake Game</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Snake — Business Ultra</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <h1>🐍 Snake Game</h1>
-  <div class="controls">
-    <button id="startBtn">Start</button>
-    <button id="pauseBtn">Pause</button>
-    <button id="resetBtn">Reset</button>
+  <header class="topbar">
+    <div class="brand">
+      <span class="pill">BRS Enterprises</span>
+      <h1>Snake — Business Ultra</h1>
+    </div>
+    <div class="controls">
+      <button id="startBtn" class="primary">Start</button>
+      <button id="pauseBtn">Pause</button>
+      <button id="restartBtn">Restart</button>
+      <label class="inline">
+        <span>Speed</span>
+        <input id="speed" type="range" min="1" max="6" value="1" />
+        <span id="speedView" class="mono">1x</span>
+      </label>
+      <select id="mode">
+        <option value="classic">Classic (Wrap)</option>
+        <option value="arena">Arena (Walls)</option>
+      </select>
+      <select id="theme">
+        <option value="dark">Dark</option>
+        <option value="light">Light</option>
+      </select>
+      <button id="muteBtn">Sound: On</button>
+    </div>
+  </header>
+
+  <main class="layout">
+    <section class="board">
+      <div class="metrics">
+        <div class="chip">Score<br><strong id="score">0</strong></div>
+        <div class="chip">High<br><strong id="high">0</strong></div>
+        <div class="chip">Time<br><strong id="time">0s</strong></div>
+        <div class="chip">Grid<br><strong id="gridSize">20×20</strong></div>
+      </div>
+
+      <div class="canvas-wrap" id="canvasWrap">
+        <canvas id="game" width="480" height="480" aria-label="Snake game"></canvas>
+        <div class="grid-overlay" id="gridOverlay"></div>
+        <div class="hud-fab">
+          <button class="fab" id="helpBtn" title="Help">?</button>
+        </div>
+      </div>
+
+      <div class="dpad" id="dpad">
+        <span></span><button data-dir="up" aria-label="Up">▲</button><span></span>
+        <button data-dir="left" aria-label="Left">◀</button><span></span><button data-dir="right" aria-label="Right">▶</button>
+        <span></span><button data-dir="down" aria-label="Down">▼</button><span></span>
+      </div>
+    </section>
+
+    <aside class="panel">
+      <h3>How to play</h3>
+      <ul class="info">
+        <li>Use <span class="kbd">WASD</span> / <span class="kbd">←↑↓→</span> / swipe / D-Pad to move.</li>
+        <li><span class="kbd">Space</span> to pause. Eating food +10 points.</li>
+        <li>Classic mode wraps around edges. Arena mode has walls.</li>
+      </ul>
+      <h3>Top Scores (local)</h3>
+      <div id="leaderboard" class="leaderboard"></div>
+    </aside>
+  </main>
+
+  <div class="modal" id="resultModal" aria-hidden="true" role="dialog">
+    <div class="card">
+      <h2 id="resultTitle">Game Over</h2>
+      <div id="resultSubtitle" class="muted">Well played!</div>
+      <div class="stats">
+        <div class="chip">Score<br><strong id="finalScore">0</strong></div>
+        <div class="chip">Length<br><strong id="finalLen">0</strong></div>
+        <div class="chip">Time<br><strong id="finalTime">0s</strong></div>
+      </div>
+      <div class="actions">
+        <button id="playAgain" class="primary">Play Again</button>
+        <button id="closeModal">Close</button>
+      </div>
+    </div>
   </div>
-  <canvas id="game" width="400" height="400"></canvas>
 
-  <!-- Sound Effects -->
-  <audio id="eatSound" src="https://www.soundjay.com/button/beep-07.wav"></audio>
-  <audio id="gameOverSound" src="https://www.soundjay.com/button/beep-10.wav"></audio>
-
-  <script src="script.js"></script>
+  <script src="app.js"></script>
 </body>
-</html>
+                                     </html>
