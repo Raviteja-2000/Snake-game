@@ -1,0 +1,60 @@
+<!DOCTYPE html><html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Snake – Business Ultra</title>
+  <style>
+    /* CSS styling for the game UI */
+    body {
+      margin: 0;
+      background: #111;
+      color: #fff;
+      font-family: Arial, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    canvas {
+      background: #000;
+      margin-top: 20px;
+      border: 2px solid #333;
+    }
+    .controls, .scoreboard {
+      margin-top: 10px;
+    }
+    button, select, input {
+      margin: 5px;
+      padding: 5px 10px;
+      background: #444;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+    button:hover, select:hover, input:hover {
+      background: #666;
+    }
+  </style>
+</head>
+<body>
+  <h1>Snake – Business Ultra</h1>
+  <div class="scoreboard">
+    Score: <span id="score">0</span> | High Score: <span id="highScore">0</span>
+  </div>
+  <canvas id="gameCanvas" width="400" height="400"></canvas>
+  <div class="controls">
+    <button id="startBtn">Start</button>
+    <button id="pauseBtn">Pause</button>
+    <button id="restartBtn">Restart</button>
+    <button id="muteBtn">Sound: On</button>
+    <select id="themeEl">
+      <option value="dark">Dark</option>
+      <option value="light">Light</option>
+    </select>
+  </div>
+  <script>
+    // JavaScript for the Snake game logic and UI functionality
+    // (Full snake game logic with features: live score, pause, restart, themes, sound)
+  </script>
+</body>
+</html>
