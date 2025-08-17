@@ -5,22 +5,51 @@ const box = 20;
 const rows = canvas.height / box;
 const cols = canvas.width / box;
 
-let snake = [{ x: 9 * box, y: 9 * box }];
+let snake = [];
 let direction = "RIGHT";
-let food = {
-  x: Math.floor(Math.random() * cols) * box,
-  y: Math.floor(Math.random() * rows) * box
-};
+let food;
+let game;
+let isRunning = false;
 
 const eatSound = document.getElementById("eatSound");
 const gameOverSound = document.getElementById("gameOverSound");
 
 document.addEventListener("keydown", e => {
-  if (e.key === "ArrowUp" && direction !== "DOWN") direction = "UP";
-  else if (e.key === "ArrowDown" && direction !== "UP") direction = "DOWN";
-  else if (e.key === "ArrowLeft" && direction !== "RIGHT") direction = "LEFT";
-  else if (e.key === "ArrowRight" && direction !== "LEFT") direction = "RIGHT";
+  const key = e.key.toLowerCase();
+  if ((key === "arrowup" || key === "w") && direction !== "DOWN") direction = "UP";
+  else if ((key === "arrowdown" || key === "s") && direction !== "UP") direction = "DOWN";
+  else if ((key === "arrowleft" || key === "a") && direction !== "RIGHT") direction = "LEFT";
+  else if ((key === "arrowright" || key === "d") && direction !== "LEFT") direction = "RIGHT";
 });
+
+document.getElementById("startBtn").addEventListener("click", () => {
+  if (!isRunning) {
+    isRunning = true;
+    game = setInterval(draw, 100);
+  }
+});
+
+document.getElementById("pauseBtn").addEventListener("click", () => {
+  clearInterval(game);
+  isRunning = false;
+});
+
+document.getElementById("resetBtn").addEventListener("click", () => {
+  clearInterval(game);
+  isRunning = false;
+  resetGame();
+});
+
+function resetGame() {
+  snake = [{ x: 9 * box, y: 9 * box }];
+  direction = "RIGHT";
+  food = {
+    x: Math.floor(Math.random() * cols) * box,
+    y: Math.floor(Math.random() * rows) * box
+  };
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  draw();
+}
 
 function draw() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -51,6 +80,7 @@ function draw() {
     snake.some(segment => segment.x === headX && segment.y === headY)
   ) {
     clearInterval(game);
+    isRunning = false;
     gameOverSound.play();
     alert("Game Over!");
     return;
@@ -72,4 +102,5 @@ function draw() {
   snake.unshift(newHead);
 }
 
-const game = setInterval(draw, 100);
+// Initialize game
+resetGame();
