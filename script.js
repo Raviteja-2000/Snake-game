@@ -90,3 +90,5 @@ document.addEventListener('DOMContentLoaded', (event) => {
   // For example, if you have a function called 'startGame', you'd put it here:
   startGame(); 
 });
+startGame();
+
