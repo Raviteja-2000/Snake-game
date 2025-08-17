@@ -85,3 +85,8 @@ function restartGame() {
 }
 
 game = setInterval(draw, 100);
+document.addEventListener('DOMContentLoaded', (event) => {
+  // Your game's startup function here
+  // For example, if you have a function called 'startGame', you'd put it here:
+  startGame(); 
+});
