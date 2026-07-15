@@ -23,6 +23,15 @@
       <button id="startBtn" class="primary" aria-label="Start game">Start</button>
       <button id="pauseBtn" aria-label="Pause game">Pause</button>
       <button id="restartBtn" aria-label="Restart game">Restart</button>
+      <!-- PHASE 3: Difficulty selector -->
+      <label class="inline" aria-label="Game difficulty">
+        <span>Difficulty</span>
+        <select id="difficulty" aria-label="Select game difficulty">
+          <option value="easy">Easy</option>
+          <option value="normal" selected>Normal</option>
+          <option value="hard">Hard</option>
+        </select>
+      </label>
       <label class="inline" aria-label="Game speed control">
         <span>Speed</span>
         <input id="speed" type="range" min="1" max="6" value="1" aria-label="Adjust game speed" />
@@ -64,7 +73,6 @@
       <div class="canvas-wrap" id="canvasWrap">
         <canvas id="game" width="480" height="480" aria-label="Snake game canvas"></canvas>
         <div class="grid-overlay" id="gridOverlay" aria-hidden="true"></div>
-        <!-- PHASE 2: Pause overlay with visual feedback -->
         <div class="pause-overlay" id="pauseOverlay" aria-hidden="true" role="status">
           <div class="pause-content">
             <h2>PAUSED</h2>
@@ -94,7 +102,7 @@
       <ul class="info">
         <li>Use <span class="kbd">WASD</span> / <span class="kbd">←↑↓→</span> / swipe / D-Pad to move.</li>
         <li><span class="kbd">Space</span> to pause. Eating food +10 points.</li>
-        <li>Classic mode wraps around edges. Arena mode has walls.</li>
+        <li><strong>Difficulty</strong> affects starting speed. Pick your challenge!</li>
       </ul>
       <h3>Top Scores (local)</h3>
       <div id="leaderboard" class="leaderboard" role="table" aria-label="Top 10 scores"></div>
@@ -128,7 +136,6 @@
 
   <script src="script.js"></script>
   <script>
-    // PHASE 2: Service worker registration for offline support
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
         navigator.serviceWorker.register('service-worker.js')

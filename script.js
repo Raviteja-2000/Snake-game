@@ -8,6 +8,7 @@ const restartBtn = document.getElementById('restartBtn');
 const themeEl = document.getElementById('theme');
 const muteBtn = document.getElementById('muteBtn');
 const modeEl = document.getElementById('mode');
+const difficultyEl = document.getElementById('difficulty');
 const speedRange = document.getElementById('speed');
 const speedView = document.getElementById('speedView');
 const scoreEl = document.getElementById('score');
@@ -33,10 +34,18 @@ const VALID_MODES = ['classic', 'arena'];
 const VALID_SPEEDS = [1, 2, 3, 4, 5, 6];
 const MAX_SNAKE_LENGTH = 1000;
 
+// PHASE 3: Difficulty tiers with balanced parameters
+const DIFFICULTY = {
+  easy: { speedBase: 100, name: 'Easy', color: '#10b981' },
+  normal: { speedBase: 120, name: 'Normal', color: '#3b82f6' },
+  hard: { speedBase: 150, name: 'Hard', color: '#ef4444' }
+};
+
 let GRID = 20;
 let CELL = 0;
 let SPEED = 1;
 let MODE = 'classic';
+let DIFFICULTY_LEVEL = 'normal';
 
 let running = false, paused = false;
 let last = 0, acc = 0, step = 110;
@@ -106,24 +115,37 @@ document.addEventListener('visibilitychange', () => {
   }
 }, { passive: true });
 
-// tiny beep
-let ac=null;
-function tone(freq=520, time=0.06){
+// PHASE 3: Enhanced sound design with multiple tones
+let ac = null;
+
+function tone(freq = 520, time = 0.06) {
   if(muted) return;
-  try{
-    ac = ac || new (window.AudioContext||window.webkitAudioContext)();
+  try {
+    ac = ac || new (window.AudioContext || window.webkitAudioContext)();
     const o = ac.createOscillator();
     const g = ac.createGain();
-    o.frequency.value = freq; o.type='square';
+    o.frequency.value = freq;
+    o.type = 'square';
     g.gain.setValueAtTime(0.0001, ac.currentTime);
     g.gain.exponentialRampToValueAtTime(0.18, ac.currentTime + 0.01);
     g.gain.exponentialRampToValueAtTime(0.0001, ac.currentTime + time);
-    o.connect(g); g.connect(ac.destination);
-    o.start(); o.stop(ac.currentTime + time + 0.02);
-  }catch(e){
+    o.connect(g);
+    g.connect(ac.destination);
+    o.start();
+    o.stop(ac.currentTime + time + 0.02);
+  } catch(e) {
     console.error('Audio error:', e);
   }
 }
+
+// PHASE 3: Sound effects for different game events
+const SOUNDS = {
+  eat: () => tone(760, 0.08),
+  pause: () => tone(440, 0.1),
+  unpause: () => tone(520, 0.1),
+  crash: () => tone(180, 0.2),
+  levelup: () => { tone(523, 0.15); setTimeout(() => tone(659, 0.15), 100); setTimeout(() => tone(784, 0.15), 200); }
+};
 
 // leaderboard (local) - OPTIMIZED with DocumentFragment
 function getLB(){ return load('lb', []); }
@@ -165,12 +187,23 @@ function validateSpeed(speed) {
   return VALID_SPEEDS.includes(speed) ? speed : 1;
 }
 
+function validateDifficulty(diff) {
+  return DIFFICULTY[diff] ? diff : 'normal';
+}
+
 // core
 function reset(){
   MODE = validateMode(modeEl.value);
-  score = 0; scoreEl.textContent = '0';
-  dir = {x:1,y:0}; nextDir = {x:1,y:0};
-  snake = [ {x:Math.floor(GRID/2)-1, y:Math.floor(GRID/2)}, {x:Math.floor(GRID/2), y:Math.floor(GRID/2)} ];
+  DIFFICULTY_LEVEL = validateDifficulty(difficultyEl.value);
+  
+  score = 0; 
+  scoreEl.textContent = '0';
+  dir = {x:1,y:0}; 
+  nextDir = {x:1,y:0};
+  snake = [ 
+    {x:Math.floor(GRID/2)-1, y:Math.floor(GRID/2)}, 
+    {x:Math.floor(GRID/2), y:Math.floor(GRID/2)} 
+  ];
   spawnFood();
   startTime = performance.now();
   document.querySelector('.brand .pill').textContent = BRAND;
@@ -185,11 +218,14 @@ function spawnFood(){
 }
 
 function tick(){
-  const base = 120;
+  // PHASE 3: Use difficulty-based speed
+  const diff = DIFFICULTY[DIFFICULTY_LEVEL];
+  const base = diff.speedBase;
   step = base / SPEED;
 
   const now = performance.now();
-  const dt = now - last; last = now;
+  const dt = now - last; 
+  last = now;
   if(!paused) acc += dt;
   if(running && !paused){
     const secs = Math.floor((now - startTime)/1000);
@@ -219,7 +255,7 @@ function tick(){
     if(food && head.x===food.x && head.y===food.y){
       score += 10 * SPEED;
       scoreEl.textContent = String(score);
-      tone(760, .05);
+      SOUNDS.eat();
       if(navigator.vibrate) navigator.vibrate(30);
       spawnFood();
     } else {
@@ -258,18 +294,24 @@ function draw(){
   }
 
   const fx = gridToPx(food.x)+pad, fy = gridToPx(food.y)+pad, fs = CELL-2*pad;
-  ctx.fillStyle = foodCol; roundRect(ctx, fx, fy, fs, fs, 6); ctx.fill();
+  ctx.fillStyle = foodCol; 
+  roundRect(ctx, fx, fy, fs, fs, 6); 
+  ctx.fill();
 
   snake.forEach((p, i)=>{
     const x = gridToPx(p.x)+pad, y = gridToPx(p.y)+pad, s = CELL-2*pad;
     ctx.fillStyle = (i===snake.length-1)? headCol : snakeCol;
-    roundRect(ctx, x, y, s, s, 8); ctx.fill();
+    roundRect(ctx, x, y, s, s, 8); 
+    ctx.fill();
   });
 }
 
 function gameOver(reason){
-  tone(180,.2); if(navigator.vibrate) navigator.vibrate([70,50,70]);
-  running = false; paused = false; acc = 0;
+  SOUNDS.crash();
+  if(navigator.vibrate) navigator.vibrate([70,50,70]);
+  running = false; 
+  paused = false; 
+  acc = 0;
   const duration = Math.round((performance.now()-startTime)/1000);
   finalScore.textContent = String(score);
   finalLen.textContent = String(snake.length);
@@ -283,7 +325,15 @@ function gameOver(reason){
   save('high', high);
   highEl.textContent = String(high);
 
-  pushLB({ name: BRAND, score, mode: MODE, grid: GRID, time: duration, date: new Date().toISOString() });
+  pushLB({ 
+    name: BRAND, 
+    score, 
+    mode: MODE, 
+    difficulty: DIFFICULTY_LEVEL,
+    grid: GRID, 
+    time: duration, 
+    date: new Date().toISOString() 
+  });
 }
 
 function roundRect(ctx, x,y,w,h,r){
@@ -340,23 +390,29 @@ dpad.addEventListener('click', (e)=>{
 })();
 
 // UI wiring
-function start(){ if(running) return; paused = false; running = true; last = performance.now(); acc = 0; startTime = performance.now(); requestAnimationFrame(tick); }
+function start(){ 
+  if(running) return; 
+  paused = false; 
+  running = true; 
+  last = performance.now(); 
+  acc = 0; 
+  startTime = performance.now(); 
+  requestAnimationFrame(tick); 
+}
 
 function pause(){ 
   paused = !paused; 
-  tone(paused?220:520,.05);
-  // PHASE 2: Show/hide pause overlay
+  SOUNDS[paused ? 'pause' : 'unpause']();
   pauseOverlay.setAttribute('aria-hidden', paused ? 'false' : 'true');
 }
 
 function restart(){ 
-  // Clear pause overlay
   pauseOverlay.setAttribute('aria-hidden', 'true');
   reset(); 
   resize(); 
   running = false; 
   paused = false; 
-  acc=0; 
+  acc = 0; 
   draw(); 
 }
 
@@ -369,26 +425,39 @@ closeModal.onclick = ()=>{ resultModal.classList.remove('active'); resultModal.s
 themeEl.onchange = ()=>{ 
   const t = themeEl.value; 
   document.body.classList.toggle('light', t==='light'); 
-  updateCssVarCache(); // CRITICAL: Update cache when theme changes
+  updateCssVarCache();
   save('theme', t); 
 };
-muteBtn.onclick = ()=>{ muted = !muted; muteBtn.textContent = 'Sound: ' + (muted? 'Off':'On'); save('muted', muted); };
+
+muteBtn.onclick = ()=>{ 
+  muted = !muted; 
+  muteBtn.textContent = 'Sound: ' + (muted? 'Off':'On'); 
+  save('muted', muted); 
+};
+
 modeEl.onchange = ()=> restart();
+
+// PHASE 3: Difficulty selector
+difficultyEl.onchange = ()=> {
+  DIFFICULTY_LEVEL = validateDifficulty(difficultyEl.value);
+  save('difficulty', DIFFICULTY_LEVEL);
+  restart();
+};
+
 speedRange.oninput = ()=>{ 
   SPEED = validateSpeed(parseInt(speedRange.value, 10)); 
   speedView.textContent = SPEED+'x'; 
   save('speed', SPEED); 
 };
-helpBtn.onclick = ()=> alert('Eat food (+10). Avoid walls/tail. Controls: WASD/Arrows/Swipe/D-Pad. Space = Pause. Scores saved locally.');
+
+helpBtn.onclick = ()=> alert('🎮 Eat food (+10 pts). Avoid walls/tail.\n\n⌨️ WASD/Arrows/Swipe to move\n⏸️ Space to pause\n⚙️ Pick difficulty & speed\n\n📊 Scores saved locally!');
 
 // boot
 (function boot(){
   document.querySelector('.brand .pill').textContent = BRAND;
   
-  // Initialize CSS var cache
   updateCssVarCache();
   
-  // Load and validate settings
   const theme = load('theme','dark'); 
   themeEl.value = theme; 
   document.body.classList.toggle('light', theme==='light');
@@ -403,6 +472,10 @@ helpBtn.onclick = ()=> alert('Eat food (+10). Avoid walls/tail. Controls: WASD/A
   const loadedMode = load('mode', 'classic');
   MODE = validateMode(loadedMode);
   modeEl.value = MODE;
+  
+  // PHASE 3: Load difficulty
+  DIFFICULTY_LEVEL = validateDifficulty(load('difficulty', 'normal'));
+  difficultyEl.value = DIFFICULTY_LEVEL;
   
   high = load('high',0); 
   highEl.textContent = String(high);
