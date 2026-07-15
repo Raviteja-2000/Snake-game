@@ -28,6 +28,10 @@ const lbEl = document.getElementById('leaderboard');
 const canvasWrap = document.getElementById('canvasWrap');
 
 const BRAND = 'BRS Enterprises';
+const VALID_MODES = ['classic', 'arena'];
+const VALID_SPEEDS = [1, 2, 3, 4, 5, 6];
+const MAX_SNAKE_LENGTH = 1000;
+
 let GRID = 20;
 let CELL = 0;
 let SPEED = 1;
@@ -44,12 +48,35 @@ let startTime = 0;
 let high = 0;
 let muted = false;
 
+// Cache CSS variables to avoid getComputedStyle in render loop
+let cssVars = {
+  panel: '#0f162e',
+  grid: '#1b2342',
+  text: '#e8efff',
+  muted: '#93a4bd',
+  accent: '#34d399',
+  accentSecondary: '#60a5fa'
+};
+
 const rand = n => Math.floor(Math.random()*n);
 const key = (x,y)=> `${x},${y}`;
 const clamp = (v,min,max)=> v<min?min: v>max?max: v;
 function gridToPx(n){ return Math.floor(n * CELL); }
 function save(k,v){ localStorage.setItem('snake_ultra_'+k, JSON.stringify(v)); }
 function load(k,d){ try{return JSON.parse(localStorage.getItem('snake_ultra_'+k)) ?? d;}catch{return d;} }
+
+// Update CSS var cache
+function updateCssVarCache() {
+  const styles = getComputedStyle(document.body);
+  cssVars = {
+    panel: styles.getPropertyValue('--panel').trim() || '#0f162e',
+    grid: styles.getPropertyValue('--grid').trim() || '#1b2342',
+    text: styles.getPropertyValue('--text').trim() || '#e8efff',
+    muted: styles.getPropertyValue('--muted').trim() || '#93a4bd',
+    accent: styles.getPropertyValue('--accent').trim() || '#34d399',
+    accentSecondary: styles.getPropertyValue('--accent-2').trim() || '#60a5fa'
+  };
+}
 
 // Enhanced resize with better responsive handling
 function resize(){
@@ -92,28 +119,54 @@ function tone(freq=520, time=0.06){
     g.gain.exponentialRampToValueAtTime(0.0001, ac.currentTime + time);
     o.connect(g); g.connect(ac.destination);
     o.start(); o.stop(ac.currentTime + time + 0.02);
-  }catch{}
+  }catch(e){
+    console.error('Audio error:', e);
+  }
 }
 
-// leaderboard (local)
+// leaderboard (local) - OPTIMIZED with DocumentFragment
 function getLB(){ return load('lb', []); }
 function setLB(arr){ save('lb', arr.slice(0,10)); renderLB(); }
 function pushLB(item){ const arr = getLB(); arr.push(item); arr.sort((a,b)=> b.score - a.score); setLB(arr); }
 function renderLB(){
   const arr = getLB();
-  lbEl.innerHTML = '';
-  if(!arr.length){ lbEl.innerHTML = '<span class="muted">No scores yet</span>'; return; }
+  
+  if(!arr.length){ 
+    lbEl.innerHTML = '<span class="muted">No scores yet</span>'; 
+    return; 
+  }
+  
+  const frag = document.createDocumentFragment();
+  
   arr.forEach((r,i)=>{
-    const name = r.name || 'Player';
-    const left = document.createElement('div'); left.textContent = `${i+1}. ${name}`; left.className='muted';
-    const right = document.createElement('div'); right.textContent = r.score; right.style.fontWeight='800';
-    lbEl.append(left,right);
+    const left = document.createElement('div'); 
+    left.textContent = `${i+1}. ${r.name || 'Player}`; 
+    left.className='muted';
+    
+    const right = document.createElement('div'); 
+    right.textContent = r.score; 
+    right.style.fontWeight='800';
+    
+    frag.appendChild(left);
+    frag.appendChild(right);
   });
+  
+  lbEl.innerHTML = ''; // Clear once
+  lbEl.appendChild(frag); // Add all at once
+}
+
+// Validate input values
+function validateMode(mode) {
+  return VALID_MODES.includes(mode) ? mode : 'classic';
+}
+
+function validateSpeed(speed) {
+  return VALID_SPEEDS.includes(speed) ? speed : 1;
 }
 
 // core
 function reset(){
-  MODE = modeEl.value;
+  MODE = validateMode(modeEl.value);
   score = 0; scoreEl.textContent = '0';
   dir = {x:1,y:0}; nextDir = {x:1,y:0};
   snake = [ {x:Math.floor(GRID/2)-1, y:Math.floor(GRID/2)}, {x:Math.floor(GRID/2), y:Math.floor(GRID/2)} ];
@@ -171,6 +224,11 @@ function tick(){
     } else {
       snake.shift();
     }
+    
+    // CRITICAL: Prevent memory leak from unbounded snake growth
+    if(snake.length > MAX_SNAKE_LENGTH) {
+      return gameOver('Snake too long!');
+    }
   }
 
   draw();
@@ -179,18 +237,18 @@ function tick(){
 
 function draw(){
   ctx.clearRect(0,0,canvas.width,canvas.height);
-  const styles = getComputedStyle(document.body);
-  const panel = styles.getPropertyValue('--panel');
+  
+  // Use cached CSS vars instead of getComputedStyle (PERFORMANCE FIX)
   const snakeCol = '#7dd3fc';
   const headCol = '#22d3ee';
   const foodCol = '#fb7185';
   const pad = Math.floor(CELL*0.12);
 
-  ctx.fillStyle = panel;
+  ctx.fillStyle = cssVars.panel;
   ctx.fillRect(0,0,canvas.width,canvas.height);
 
   if(MODE==='arena'){
-    ctx.fillStyle = styles.getPropertyValue('--grid');
+    ctx.fillStyle = cssVars.grid;
     const b = Math.max(2,Math.floor(CELL/6));
     ctx.fillRect(0,0,canvas.width,b);
     ctx.fillRect(0,canvas.height-b,canvas.width,b);
@@ -297,19 +355,49 @@ restartBtn.onclick = ()=> restart();
 playAgain.onclick = ()=>{ resultModal.classList.remove('active'); resultModal.setAttribute('aria-hidden', 'true'); restart(); start(); };
 closeModal.onclick = ()=>{ resultModal.classList.remove('active'); resultModal.setAttribute('aria-hidden', 'true'); };
 
-themeEl.onchange = ()=>{ const t = themeEl.value; document.body.classList.toggle('light', t==='light'); save('theme', t); };
+themeEl.onchange = ()=>{ 
+  const t = themeEl.value; 
+  document.body.classList.toggle('light', t==='light'); 
+  updateCssVarCache(); // CRITICAL: Update cache when theme changes
+  save('theme', t); 
+};
 muteBtn.onclick = ()=>{ muted = !muted; muteBtn.textContent = 'Sound: ' + (muted? 'Off':'On'); save('muted', muted); };
 modeEl.onchange = ()=> restart();
-speedRange.oninput = ()=>{ SPEED = parseInt(speedRange.value,10); speedView.textContent = SPEED+'x'; save('speed', SPEED); };
+speedRange.oninput = ()=>{ 
+  SPEED = validateSpeed(parseInt(speedRange.value, 10)); 
+  speedView.textContent = SPEED+'x'; 
+  save('speed', SPEED); 
+};
 helpBtn.onclick = ()=> alert('Eat food (+10). Avoid walls/tail. Controls: WASD/Arrows/Swipe/D-Pad. Space = Pause. Scores saved locally.');
 
 // boot
 (function boot(){
   document.querySelector('.brand .pill').textContent = BRAND;
-  const theme = load('theme','dark'); themeEl.value = theme; document.body.classList.toggle('light', theme==='light');
-  muted = !!load('muted', false); muteBtn.textContent = 'Sound: ' + (muted? 'Off':'On');
-  SPEED = clamp(load('speed',1),1,6); speedRange.value = SPEED; speedView.textContent = SPEED+'x';
-  high = load('high',0); highEl.textContent = String(high);
+  
+  // Initialize CSS var cache
+  updateCssVarCache();
+  
+  // Load and validate settings
+  const theme = load('theme','dark'); 
+  themeEl.value = theme; 
+  document.body.classList.toggle('light', theme==='light');
+  
+  muted = !!load('muted', false); 
+  muteBtn.textContent = 'Sound: ' + (muted? 'Off':'On');
+  
+  SPEED = validateSpeed(load('speed', 1)); 
+  speedRange.value = SPEED; 
+  speedView.textContent = SPEED+'x';
+  
+  const loadedMode = load('mode', 'classic');
+  MODE = validateMode(loadedMode);
+  modeEl.value = MODE;
+  
+  high = load('high',0); 
+  highEl.textContent = String(high);
+  
   renderLB();
-  reset(); resize(); draw();
+  reset(); 
+  resize(); 
+  draw();
 })();
