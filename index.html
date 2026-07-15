@@ -7,6 +7,9 @@
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="Snake" />
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'><rect fill='%230b1020' width='192' height='192'/><rect fill='%2334d399' x='48' y='48' width='32' height='32' rx='4'/><rect fill='%2334d399' x='80' y='48' width='32' height='32' rx='4'/><rect fill='%2322d3ee' x='112' y='48' width='32' height='32' rx='4'/><rect fill='%23fb7185' x='80' y='80' width='32' height='32' rx='4'/></svg>" />
+  <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 180'><rect fill='%230b1020' width='180' height='180'/><rect fill='%2334d399' x='45' y='45' width='30' height='30' rx='4'/><rect fill='%2334d399' x='75' y='45' width='30' height='30' rx='4'/><rect fill='%2322d3ee' x='105' y='45' width='30' height='30' rx='4'/><rect fill='%23fb7185' x='75' y='75' width='30' height='30' rx='4'/></svg>" />
+  <link rel="manifest" href="manifest.json" />
   <title>Snake — Business Ultra</title>
   <link rel="stylesheet" href="style.css" />
 </head>
@@ -61,6 +64,13 @@
       <div class="canvas-wrap" id="canvasWrap">
         <canvas id="game" width="480" height="480" aria-label="Snake game canvas"></canvas>
         <div class="grid-overlay" id="gridOverlay" aria-hidden="true"></div>
+        <!-- PHASE 2: Pause overlay with visual feedback -->
+        <div class="pause-overlay" id="pauseOverlay" aria-hidden="true" role="status">
+          <div class="pause-content">
+            <h2>PAUSED</h2>
+            <p>Press Space or Click Pause to Resume</p>
+          </div>
+        </div>
         <div class="hud-fab">
           <button class="fab" id="helpBtn" title="Help" aria-label="Show help">?</button>
         </div>
@@ -117,5 +127,15 @@
   </div>
 
   <script src="script.js"></script>
+  <script>
+    // PHASE 2: Service worker registration for offline support
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('service-worker.js')
+          .then(reg => console.log('✓ Service Worker registered'))
+          .catch(err => console.log('✗ Service Worker registration failed:', err));
+      });
+    }
+  </script>
 </body>
 </html>

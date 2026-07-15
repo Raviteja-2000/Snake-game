@@ -26,6 +26,7 @@ const playAgain = document.getElementById('playAgain');
 const closeModal = document.getElementById('closeModal');
 const lbEl = document.getElementById('leaderboard');
 const canvasWrap = document.getElementById('canvasWrap');
+const pauseOverlay = document.getElementById('pauseOverlay');
 
 const BRAND = 'BRS Enterprises';
 const VALID_MODES = ['classic', 'arena'];
@@ -140,7 +141,7 @@ function renderLB(){
   
   arr.forEach((r,i)=>{
     const left = document.createElement('div'); 
-    left.textContent = `${i+1}. ${r.name || 'Player}`; 
+    left.textContent = `${i+1}. ${r.name || 'Player'}`; 
     left.className='muted';
     
     const right = document.createElement('div'); 
@@ -264,12 +265,6 @@ function draw(){
     ctx.fillStyle = (i===snake.length-1)? headCol : snakeCol;
     roundRect(ctx, x, y, s, s, 8); ctx.fill();
   });
-
-  if(paused){
-    ctx.fillStyle = 'rgba(0,0,0,.35)'; ctx.fillRect(0,0,canvas.width,canvas.height);
-    ctx.fillStyle = '#fff'; ctx.textAlign='center'; ctx.font = `${Math.floor(CELL*1.2)}px ui-sans-serif`;
-    ctx.fillText('PAUSED', canvas.width/2, canvas.height/2);
-  }
 }
 
 function gameOver(reason){
@@ -346,8 +341,24 @@ dpad.addEventListener('click', (e)=>{
 
 // UI wiring
 function start(){ if(running) return; paused = false; running = true; last = performance.now(); acc = 0; startTime = performance.now(); requestAnimationFrame(tick); }
-function pause(){ paused = !paused; tone(paused?220:520,.05); }
-function restart(){ reset(); resize(); running = false; paused = false; acc=0; draw(); }
+
+function pause(){ 
+  paused = !paused; 
+  tone(paused?220:520,.05);
+  // PHASE 2: Show/hide pause overlay
+  pauseOverlay.setAttribute('aria-hidden', paused ? 'false' : 'true');
+}
+
+function restart(){ 
+  // Clear pause overlay
+  pauseOverlay.setAttribute('aria-hidden', 'true');
+  reset(); 
+  resize(); 
+  running = false; 
+  paused = false; 
+  acc=0; 
+  draw(); 
+}
 
 startBtn.onclick = ()=> start();
 pauseBtn.onclick = ()=> pause();
