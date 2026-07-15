@@ -2,7 +2,11 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
+  <meta name="theme-color" content="#0b1020" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Snake" />
   <title>Snake — Business Ultra</title>
   <link rel="stylesheet" href="style.css" />
 </head>
@@ -13,47 +17,65 @@
       <h1>Snake — Business Ultra</h1>
     </div>
     <div class="controls">
-      <button id="startBtn" class="primary">Start</button>
-      <button id="pauseBtn">Pause</button>
-      <button id="restartBtn">Restart</button>
-      <label class="inline">
+      <button id="startBtn" class="primary" aria-label="Start game">Start</button>
+      <button id="pauseBtn" aria-label="Pause game">Pause</button>
+      <button id="restartBtn" aria-label="Restart game">Restart</button>
+      <label class="inline" aria-label="Game speed control">
         <span>Speed</span>
-        <input id="speed" type="range" min="1" max="6" value="1" />
-        <span id="speedView" class="mono">1x</span>
+        <input id="speed" type="range" min="1" max="6" value="1" aria-label="Adjust game speed" />
+        <span id="speedView" class="mono" aria-live="polite">1x</span>
       </label>
-      <select id="mode">
+      <select id="mode" aria-label="Select game mode">
         <option value="classic">Classic (Wrap)</option>
         <option value="arena">Arena (Walls)</option>
       </select>
-      <select id="theme">
+      <select id="theme" aria-label="Select color theme">
         <option value="dark">Dark</option>
         <option value="light">Light</option>
       </select>
-      <button id="muteBtn">Sound: On</button>
+      <button id="muteBtn" aria-label="Toggle sound">Sound: On</button>
     </div>
   </header>
 
   <main class="layout">
     <section class="board">
       <div class="metrics">
-        <div class="chip">Score<br><strong id="score">0</strong></div>
-        <div class="chip">High<br><strong id="high">0</strong></div>
-        <div class="chip">Time<br><strong id="time">0s</strong></div>
-        <div class="chip">Grid<br><strong id="gridSize">20×20</strong></div>
-      </div>
-
-      <div class="canvas-wrap" id="canvasWrap">
-        <canvas id="game" width="480" height="480" aria-label="Snake game"></canvas>
-        <div class="grid-overlay" id="gridOverlay"></div>
-        <div class="hud-fab">
-          <button class="fab" id="helpBtn" title="Help">?</button>
+        <div class="chip">
+          <span>Score</span>
+          <strong id="score" aria-label="Current score">0</strong>
+        </div>
+        <div class="chip">
+          <span>High</span>
+          <strong id="high" aria-label="High score">0</strong>
+        </div>
+        <div class="chip">
+          <span>Time</span>
+          <strong id="time" aria-label="Game time" aria-live="polite">0s</strong>
+        </div>
+        <div class="chip">
+          <span>Grid</span>
+          <strong id="gridSize" aria-label="Grid size">20×20</strong>
         </div>
       </div>
 
-      <div class="dpad" id="dpad">
-        <span></span><button data-dir="up" aria-label="Up">▲</button><span></span>
-        <button data-dir="left" aria-label="Left">◀</button><span></span><button data-dir="right" aria-label="Right">▶</button>
-        <span></span><button data-dir="down" aria-label="Down">▼</button><span></span>
+      <div class="canvas-wrap" id="canvasWrap">
+        <canvas id="game" width="480" height="480" aria-label="Snake game canvas"></canvas>
+        <div class="grid-overlay" id="gridOverlay" aria-hidden="true"></div>
+        <div class="hud-fab">
+          <button class="fab" id="helpBtn" title="Help" aria-label="Show help">?</button>
+        </div>
+      </div>
+
+      <div class="dpad" id="dpad" role="group" aria-label="Game controls">
+        <span aria-hidden="true"></span>
+        <button data-dir="up" aria-label="Move up">▲</button>
+        <span aria-hidden="true"></span>
+        <button data-dir="left" aria-label="Move left">◀</button>
+        <span aria-hidden="true"></span>
+        <button data-dir="right" aria-label="Move right">▶</button>
+        <span aria-hidden="true"></span>
+        <button data-dir="down" aria-label="Move down">▼</button>
+        <span aria-hidden="true"></span>
       </div>
     </section>
 
@@ -65,18 +87,27 @@
         <li>Classic mode wraps around edges. Arena mode has walls.</li>
       </ul>
       <h3>Top Scores (local)</h3>
-      <div id="leaderboard" class="leaderboard"></div>
+      <div id="leaderboard" class="leaderboard" role="table" aria-label="Top 10 scores"></div>
     </aside>
   </main>
 
-  <div class="modal" id="resultModal" aria-hidden="true" role="dialog">
+  <div class="modal" id="resultModal" aria-hidden="true" role="dialog" aria-labelledby="resultTitle">
     <div class="card">
       <h2 id="resultTitle">Game Over</h2>
-      <div id="resultSubtitle" class="muted">Well played!</div>
+      <div id="resultSubtitle" class="muted"></div>
       <div class="stats">
-        <div class="chip">Score<br><strong id="finalScore">0</strong></div>
-        <div class="chip">Length<br><strong id="finalLen">0</strong></div>
-        <div class="chip">Time<br><strong id="finalTime">0s</strong></div>
+        <div class="chip">
+          <span>Score</span>
+          <strong id="finalScore">0</strong>
+        </div>
+        <div class="chip">
+          <span>Length</span>
+          <strong id="finalLen">0</strong>
+        </div>
+        <div class="chip">
+          <span>Time</span>
+          <strong id="finalTime">0s</strong>
+        </div>
       </div>
       <div class="actions">
         <button id="playAgain" class="primary">Play Again</button>
@@ -87,4 +118,4 @@
 
   <script src="script.js"></script>
 </body>
-                                     </html>
+</html>
