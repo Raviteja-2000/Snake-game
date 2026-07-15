@@ -1,4 +1,4 @@
-// Snake — Business Ultra (vanilla JS)
+// Snake — Business Ultra (vanilla JS) - Responsive Edition
 const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
 const gridOverlay = document.getElementById('gridOverlay');
@@ -25,6 +25,7 @@ const finalTime = document.getElementById('finalTime');
 const playAgain = document.getElementById('playAgain');
 const closeModal = document.getElementById('closeModal');
 const lbEl = document.getElementById('leaderboard');
+const canvasWrap = document.getElementById('canvasWrap');
 
 const BRAND = 'BRS Enterprises';
 let GRID = 20;
@@ -50,17 +51,32 @@ function gridToPx(n){ return Math.floor(n * CELL); }
 function save(k,v){ localStorage.setItem('snake_ultra_'+k, JSON.stringify(v)); }
 function load(k,d){ try{return JSON.parse(localStorage.getItem('snake_ultra_'+k)) ?? d;}catch{return d;} }
 
+// Enhanced resize with better responsive handling
 function resize(){
-  const wrap = document.getElementById('canvasWrap');
-  const s = Math.min(wrap.clientWidth, wrap.clientHeight);
+  const s = Math.min(canvasWrap.clientWidth, canvasWrap.clientHeight);
   const dpr = window.devicePixelRatio || 1;
+  
   canvas.width = canvas.height = Math.floor(s * dpr);
   canvas.style.width = canvas.style.height = s + 'px';
+  
   CELL = Math.floor(canvas.width / GRID);
   gridOverlay.style.backgroundSize = `calc(100%/${GRID}) calc(100%/${GRID}), calc(100%/${GRID}) calc(100%/${GRID})`;
+  
   draw();
 }
-window.addEventListener('resize', resize);
+
+// Handle window resize and orientation change
+window.addEventListener('resize', resize, { passive: true });
+window.addEventListener('orientationchange', () => {
+  setTimeout(resize, 100);
+}, { passive: true });
+
+// Handle visibility change to pause game
+document.addEventListener('visibilitychange', () => {
+  if(document.hidden && running && !paused) {
+    pause();
+  }
+}, { passive: true });
 
 // tiny beep
 let ac=null;
@@ -208,6 +224,7 @@ function gameOver(reason){
   resultTitle.textContent = 'Game Over';
   resultSubtitle.textContent = reason;
   resultModal.classList.add('active');
+  resultModal.setAttribute('aria-hidden', 'false');
 
   high = Math.max(score, load('high',0));
   save('high', high);
@@ -233,11 +250,18 @@ const dirs = {
   KeyW:{x:0,y:-1}, KeyS:{x:0,y:1}, KeyA:{x:-1,y:0}, KeyD:{x:1,y:0}
 };
 document.addEventListener('keydown', (e)=>{
-  if(e.code==='Space'){ pause(); return; }
+  if(e.code==='Space'){ e.preventDefault(); pause(); return; }
   const nd = dirs[e.code]; if(!nd) return;
   if(snake.length>1 && (nd.x===-dir.x && nd.y===-dir.y)) return;
   nextDir = nd;
-},{passive:true});
+},{passive:false});
+
+// Prevent scrolling on arrow key and space
+document.addEventListener('keydown', (e)=>{
+  if(['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space'].includes(e.code)){
+    e.preventDefault();
+  }
+}, {passive:false});
 
 dpad.addEventListener('click', (e)=>{
   if(e.target.tagName!=='BUTTON') return;
@@ -250,17 +274,16 @@ dpad.addEventListener('click', (e)=>{
 // swipe
 (function(){
   let sx=0, sy=0, dx=0, dy=0, touching=false;
-  const area = document.getElementById('canvasWrap');
-  area.addEventListener('touchstart', (e)=>{ const t=e.touches[0]; sx=t.clientX; sy=t.clientY; touching=true; }, {passive:true});
-  area.addEventListener('touchmove',  (e)=>{ if(!touching) return; const t=e.touches[0]; dx=t.clientX-sx; dy=t.clientY-sy; }, {passive:true});
-  area.addEventListener('touchend',   ()=>{
+  canvasWrap.addEventListener('touchstart', (e)=>{ const t=e.touches[0]; sx=t.clientX; sy=t.clientY; touching=true; }, {passive:true});
+  canvasWrap.addEventListener('touchmove',  (e)=>{ if(!touching) return; const t=e.touches[0]; dx=t.clientX-sx; dy=t.clientY-sy; }, {passive:true});
+  canvasWrap.addEventListener('touchend',   ()=>{
     touching=false; const ax=Math.abs(dx), ay=Math.abs(dy);
     if(Math.max(ax,ay)<20) return;
     const nd = ax>ay ? {x:Math.sign(dx), y:0} : {x:0, y:Math.sign(dy)};
     if(nd.x!==0){ if(snake.length>1 && nd.x===-dir.x) return; nextDir = {x:nd.x, y:0}; }
     else { const y = nd.y>0?1:-1; if(snake.length>1 && y===-dir.y) return; nextDir = {x:0,y}; }
     dx=dy=0;
-  });
+  }, {passive:true});
 })();
 
 // UI wiring
@@ -271,8 +294,8 @@ function restart(){ reset(); resize(); running = false; paused = false; acc=0; d
 startBtn.onclick = ()=> start();
 pauseBtn.onclick = ()=> pause();
 restartBtn.onclick = ()=> restart();
-playAgain.onclick = ()=>{ resultModal.classList.remove('active'); restart(); start(); };
-closeModal.onclick = ()=> resultModal.classList.remove('active');
+playAgain.onclick = ()=>{ resultModal.classList.remove('active'); resultModal.setAttribute('aria-hidden', 'true'); restart(); start(); };
+closeModal.onclick = ()=>{ resultModal.classList.remove('active'); resultModal.setAttribute('aria-hidden', 'true'); };
 
 themeEl.onchange = ()=>{ const t = themeEl.value; document.body.classList.toggle('light', t==='light'); save('theme', t); };
 muteBtn.onclick = ()=>{ muted = !muted; muteBtn.textContent = 'Sound: ' + (muted? 'Off':'On'); save('muted', muted); };
