@@ -90,13 +90,20 @@ let PAUSE_OVERLAY = 'rgba(0,0,0,0.55)';
 let PAUSE_PIXEL = '#c8ffc8';
 
 function loadCanvasColors(){
-  const s = getComputedStyle(document.documentElement);
-  CANVAS_BG = (s.getPropertyValue('--canvas-bg') || CANVAS_BG).trim();
-  CANVAS_HEAD = (s.getPropertyValue('--canvas-head') || CANVAS_HEAD).trim();
-  CANVAS_BODY = (s.getPropertyValue('--canvas-body') || CANVAS_BODY).trim();
-  CANVAS_FOOD = (s.getPropertyValue('--canvas-food') || CANVAS_FOOD).trim();
-  PAUSE_OVERLAY = (s.getPropertyValue('--pause-overlay') || PAUSE_OVERLAY).trim();
-  PAUSE_PIXEL = (s.getPropertyValue('--pause-pixel') || PAUSE_PIXEL).trim();
+  // Try to read from the body (so body.nokia overrides are captured), then fall back to :root
+  const bodies = [document.body, document.documentElement];
+  for (let el of bodies){
+    if(!el) continue;
+    const s = getComputedStyle(el);
+    const vbg = s.getPropertyValue('--canvas-bg').trim(); if(vbg) CANVAS_BG = vbg;
+    const vhead = s.getPropertyValue('--canvas-head').trim(); if(vhead) CANVAS_HEAD = vhead;
+    const vbody = s.getPropertyValue('--canvas-body').trim(); if(vbody) CANVAS_BODY = vbody;
+    const vfood = s.getPropertyValue('--canvas-food').trim(); if(vfood) CANVAS_FOOD = vfood;
+    const vover = s.getPropertyValue('--pause-overlay').trim(); if(vover) PAUSE_OVERLAY = vover;
+    const vpixel = s.getPropertyValue('--pause-pixel').trim(); if(vpixel) PAUSE_PIXEL = vpixel;
+    // if we got a canvas-bg from this element, assume we've found the effective set and stop
+    if(vbg) break;
+  }
 }
 
 // Resize: set canvas logical resolution to LOGICAL_W x LOGICAL_H and pick a CSS scale to fit container
