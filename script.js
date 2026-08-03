@@ -1,5 +1,4 @@
-// Nokia-authenticity changes: logical 84x48 canvas, pixel rendering, tick-based movement
-// Preserves existing UI wiring and localStorage keys
+// Nokia-authenticity final patches: safe storage, merged keydown, audio resume, modal focus trap, debounce resize, reduced-motion handling, improved leaderboard
 
 const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
@@ -35,7 +34,6 @@ const LOGICAL_W = 84;
 const LOGICAL_H = 48;
 let SCALE = 6; // default CSS scale, will be adjusted responsively
 
-let CELL_W = 1, CELL_H = 1; // logical cell sizes in canvas pixels (we draw at logical resolution)
 let SPEED = 1;
 let MODE = 'classic';
 
@@ -50,13 +48,41 @@ let startTime = 0;
 let high = 0;
 let muted = false;
 
+// storage wrapper with safe fallback (in-memory)
+const _memoryStore = {};
+function safeSet(key, value){
+  const k = 'snake_ultra_' + key;
+  try {
+    localStorage.setItem(k, JSON.stringify(value));
+  } catch (e) {
+    _memoryStore[k] = JSON.stringify(value);
+  }
+}
+function safeGet(key, defaultValue){
+  const k = 'snake_ultra_' + key;
+  try {
+    const v = localStorage.getItem(k);
+    if (v === null) return (_memoryStore[k] ? JSON.parse(_memoryStore[k]) : defaultValue);
+    return JSON.parse(v);
+  } catch (e) {
+    try { return _memoryStore[k] ? JSON.parse(_memoryStore[k]) : defaultValue; } catch { return defaultValue; }
+  }
+}
+
+// convenience wrappers (keeps original names used in other code)
+function save(k,v){ safeSet(k,v); }
+function load(k,d){ return safeGet(k,d); }
+
 const rand = n => Math.floor(Math.random()*n);
 const key = (x,y)=> `${x},${y}`;
 const clamp = (v,min,max)=> v<min?min: v>max?max: v;
-function save(k,v){ localStorage.setItem('snake_ultra_'+k, JSON.stringify(v)); }
-function load(k,d){ try{return JSON.parse(localStorage.getItem('snake_ultra_'+k)) ?? d;}catch{return d;} }
+
+// Respect reduced motion preference
+const PREFERS_REDUCED = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+if (PREFERS_REDUCED) document.body.classList.add('reduced-motion');
 
 // Resize: set canvas logical resolution to LOGICAL_W x LOGICAL_H and pick a CSS scale to fit container
+let _resizeTimer = null;
 function resize(){
   const availW = canvasWrap.clientWidth;
   const availH = canvasWrap.clientHeight;
@@ -70,7 +96,7 @@ function resize(){
   canvas.style.height = (LOGICAL_H * SCALE) + 'px';
 
   // disable smoothing for pixelated look
-  ctx.imageSmoothingEnabled = false;
+  if (ctx.imageSmoothingEnabled !== undefined) ctx.imageSmoothingEnabled = false;
 
   // update overlay grid to match logical cells
   gridOverlay.style.backgroundSize = `calc(100%/${LOGICAL_W}) calc(100%/${LOGICAL_H}), calc(100%/${LOGICAL_W}) calc(100%/${LOGICAL_H})`;
@@ -78,19 +104,25 @@ function resize(){
   draw();
 }
 
-window.addEventListener('resize', resize, { passive: true });
-window.addEventListener('orientationchange', () => setTimeout(resize, 100), { passive: true });
+window.addEventListener('resize', () => { clearTimeout(_resizeTimer); _resizeTimer = setTimeout(resize, 120); }, { passive: true });
+window.addEventListener('orientationchange', () => { clearTimeout(_resizeTimer); _resizeTimer = setTimeout(resize, 150); }, { passive: true });
 
+// Visibility
 document.addEventListener('visibilitychange', () => {
   if(document.hidden && running && !paused) pause();
 }, { passive: true });
 
-// WebAudio beep helper (keeps existing behavior)
-let ac=null;
+// WebAudio helper - created lazily
+let ac = null;
+function ensureAudio(){
+  if (ac) return;
+  try { ac = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { ac = null; }
+}
 function beep(freq=880, duration=0.06, type='square', gainVal=0.08){
-  if(muted) return;
+  if (muted || PREFERS_REDUCED) return;
   try{
-    ac = ac || new (window.AudioContext||window.webkitAudioContext)();
+    ensureAudio();
+    if (!ac) return;
     const o = ac.createOscillator();
     const g = ac.createGain();
     o.type = type; o.frequency.value = freq;
@@ -105,20 +137,20 @@ function beep(freq=880, duration=0.06, type='square', gainVal=0.08){
 }
 function soundEat(){ beep(1100, 0.06, 'square', 0.08); }
 function soundCrash(){ beep(200, 0.18, 'sawtooth', 0.12); }
-function soundTick(){ beep(700, 0.03, 'square', 0.04); }
 
-// leaderboard (local)
+// leaderboard (local) - improved DOM structure
 function getLB(){ return load('lb', []); }
 function setLB(arr){ save('lb', arr.slice(0,10)); renderLB(); }
 function pushLB(item){ const arr = getLB(); arr.push(item); arr.sort((a,b)=> b.score - a.score); setLB(arr); }
 function renderLB(){
   const arr = getLB(); lbEl.innerHTML = '';
-  if(!arr.length){ lbEl.innerHTML = '<span class="muted">No scores yet</span>'; return; }
+  if(!arr.length){ lbEl.innerHTML = '<div class="muted">No scores yet</div>'; return; }
   arr.forEach((r,i)=>{
-    const name = r.name || 'Player';
-    const left = document.createElement('div'); left.textContent = `${i+1}. ${name}`; left.className='muted';
-    const right = document.createElement('div'); right.textContent = r.score; right.style.fontWeight='800';
-    lbEl.append(left,right);
+    const row = document.createElement('div'); row.className = 'lb-row';
+    const label = document.createElement('div'); label.className='lb-label'; label.textContent = `${i+1}. ${r.name || 'Player'}`;
+    const scoreDiv = document.createElement('div'); scoreDiv.className='lb-score'; scoreDiv.textContent = String(r.score);
+    row.append(label, scoreDiv);
+    lbEl.append(row);
   });
 }
 
@@ -127,7 +159,6 @@ function reset(){
   MODE = modeEl.value;
   score = 0; scoreEl.textContent = '0';
   dir = {x:1,y:0}; nextDir = {x:1,y:0};
-  // start near left center
   snake = [ {x: Math.floor(LOGICAL_W/2)-2, y: Math.floor(LOGICAL_H/2)}, {x: Math.floor(LOGICAL_W/2)-1, y: Math.floor(LOGICAL_H/2)} ];
   spawnFood();
   startTime = performance.now();
@@ -143,16 +174,14 @@ function spawnFood(){
 }
 
 // Fixed-timestep tick loop
-const BASE_TICKS_PER_SEC = 6; // base speed (cells per second at SPEED=1)
+const BASE_TICKS_PER_SEC = 6; // base speed
 function updateTickInterval(){
   const ticks = BASE_TICKS_PER_SEC * SPEED;
   tickInterval = 1000 / ticks;
 }
 
 function gameTick(){
-  // apply queued direction, disallow immediate reverse
   if(!(nextDir.x === -dir.x && nextDir.y === -dir.y)) dir = nextDir;
-
   const head = { x: snake[snake.length-1].x + dir.x, y: snake[snake.length-1].y + dir.y };
 
   if(MODE === 'classic'){
@@ -161,20 +190,19 @@ function gameTick(){
   }
 
   if(MODE === 'arena' && (head.x < 0 || head.y < 0 || head.x >= LOGICAL_W || head.y >= LOGICAL_H)){
-    return gameOver('Crashed into wall');
+    return openGameOver('Crashed into wall');
   }
 
   if(snake.some(s => s.x === head.x && s.y === head.y)){
-    return gameOver('Bit your tail');
+    return openGameOver('Bit your tail');
   }
 
   snake.push(head);
 
   if(food && head.x === food.x && head.y === food.y){
     score += 10; scoreEl.textContent = String(score);
-    soundEat(); if(navigator.vibrate) navigator.vibrate(30);
+    soundEat(); if(navigator.vibrate && !PREFERS_REDUCED) navigator.vibrate(30);
     spawnFood();
-    // small speed bump every 5 apples
     if(score % 50 === 0 && SPEED < 12){ SPEED += 1; speedRange.value = SPEED; speedView.textContent = SPEED + 'x'; updateTickInterval(); }
   } else {
     snake.shift();
@@ -200,46 +228,54 @@ function tick(now){
 }
 
 function draw(){
-  // We're drawing at logical resolution (84x48); each cell is 1x1 logical pixel
   ctx.clearRect(0,0,LOGICAL_W,LOGICAL_H);
-
-  // Retro palette
   const bg = '#001100';
   const screenGreen = '#7bf67b';
   const dimGreen = '#2b7f2b';
   const foodCol = '#a6ff4d';
-
-  // background
   ctx.fillStyle = bg; ctx.fillRect(0,0,LOGICAL_W,LOGICAL_H);
 
-  // optional subtle scanlines
-  ctx.fillStyle = 'rgba(0,0,0,0.06)';
-  for(let y=0;y<LOGICAL_H;y+=2){ ctx.fillRect(0,y,LOGICAL_W,1); }
+  if (!document.body.classList.contains('reduced-motion')){
+    ctx.fillStyle = 'rgba(0,0,0,0.06)';
+    for(let y=0;y<LOGICAL_H;y+=2){ ctx.fillRect(0,y,LOGICAL_W,1); }
+  }
 
-  // draw food
   if(food){ ctx.fillStyle = foodCol; ctx.fillRect(food.x, food.y, 1, 1); }
 
-  // draw snake
   for(let i=0;i<snake.length;i++){
     const p = snake[i];
     ctx.fillStyle = (i===snake.length-1) ? screenGreen : dimGreen;
     ctx.fillRect(p.x, p.y, 1, 1);
   }
 
-  // paused overlay
   if(paused){
-    // draw a blinking block in center as PAUSED indicator (keeps retro feel)
     ctx.fillStyle = '#00000088'; ctx.fillRect(0,0,LOGICAL_W,LOGICAL_H);
     ctx.fillStyle = '#c8ffc8';
-    const text = 'PAUSED';
-    // simple pixel text fallback: draw small rectangles for each char center
     const cx = Math.floor(LOGICAL_W/2)-10, cy = Math.floor(LOGICAL_H/2)-1;
     for(let i=0;i<6;i++){ ctx.fillRect(cx + i*3, cy, 2, 2); }
   }
 }
 
-function gameOver(reason){
-  soundCrash(); if(navigator.vibrate) navigator.vibrate([70,50,70]);
+// Modal focus trap helpers
+let _prevFocus = null;
+function openModal(){
+  _prevFocus = document.activeElement;
+  resultModal.classList.add('active');
+  resultModal.setAttribute('aria-hidden', 'false');
+  const focusTarget = document.getElementById('playAgain');
+  focusTarget && focusTarget.focus();
+  document.addEventListener('keydown', modalKeyHandler);
+}
+function closeModal(){
+  resultModal.classList.remove('active');
+  resultModal.setAttribute('aria-hidden', 'true');
+  _prevFocus && _prevFocus.focus();
+  document.removeEventListener('keydown', modalKeyHandler);
+}
+function modalKeyHandler(e){ if (e.key === 'Escape') { e.preventDefault(); closeModal(); } }
+
+function openGameOver(reason){
+  soundCrash(); if(navigator.vibrate && !PREFERS_REDUCED) navigator.vibrate([70,50,70]);
   running = false; paused = false; acc = 0; last = 0;
   const duration = Math.round((performance.now()-startTime)/1000);
   finalScore.textContent = String(score);
@@ -247,38 +283,39 @@ function gameOver(reason){
   finalTime.textContent = `${duration}s`;
   resultTitle.textContent = 'Game Over';
   resultSubtitle.textContent = reason;
-  resultModal.classList.add('active'); resultModal.setAttribute('aria-hidden','false');
+  openModal();
 
   high = Math.max(score, load('high',0));
   save('high', high); highEl.textContent = String(high);
   pushLB({ name: BRAND, score, mode: MODE, grid: `${LOGICAL_W}x${LOGICAL_H}`, time: duration, date: new Date().toISOString() });
 }
 
-// Inputs
+// Inputs - merged handler with preventDefault
 const dirs = {
   ArrowUp:{x:0,y:-1}, ArrowDown:{x:0,y:1}, ArrowLeft:{x:-1,y:0}, ArrowRight:{x:1,y:0},
   Numpad8:{x:0,y:-1}, Numpad2:{x:0,y:1}, Numpad4:{x:-1,y:0}, Numpad6:{x:1,y:0},
   KeyW:{x:0,y:-1}, KeyS:{x:0,y:1}, KeyA:{x:-1,y:0}, KeyD:{x:1,y:0}
 };
 
-document.addEventListener('keydown', (e)=>{
-  if(e.code === 'Space'){ e.preventDefault(); pause(); return; }
-  const nd = dirs[e.code]; if(!nd) return;
-  // queue direction (no immediate reverse)
-  if(snake.length>1 && (nd.x === -dir.x && nd.y === -dir.y)) return;
-  nextDir = nd;
-}, {passive:false});
+document.addEventListener('keydown', (e) => {
+  const tag = document.activeElement && document.activeElement.tagName;
+  if (tag === 'INPUT' || tag === 'TEXTAREA' || document.activeElement?.isContentEditable) return;
 
-// prevent page scroll from arrows/space
-document.addEventListener('keydown', (e)=>{
-  if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Space'].includes(e.code)) e.preventDefault();
-}, {passive:false});
+  if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Space'].includes(e.code)) {
+    e.preventDefault();
+  }
+  if (e.code === 'Space') { pause(); return; }
+  const nd = dirs[e.code]; if (!nd) return;
+  if (snake.length > 1 && nd.x === -dir.x && nd.y === -dir.y) return;
+  nextDir = nd;
+}, { passive: false });
 
 // d-pad
 dpad.addEventListener('click', (e)=>{
   if(e.target.tagName !== 'BUTTON') return;
   const m = {up:{x:0,y:-1}, down:{x:0,y:1}, left:{x:-1,y:0}, right:{x:1,y:0}};
   const nd = m[e.target.getAttribute('data-dir')];
+  if(!nd) return;
   if(snake.length>1 && (nd.x === -dir.x && nd.y === -dir.y)) return;
   nextDir = nd;
 });
@@ -299,15 +336,20 @@ dpad.addEventListener('click', (e)=>{
 })();
 
 // UI wiring
-function start(){ if(running) return; paused=false; running=true; last=0; acc=0; startTime=performance.now(); requestAnimationFrame(tick); }
+function start(){
+  if(running) return;
+  // attempt to resume/create audio on user gesture
+  try{ ensureAudio(); if(ac && typeof ac.resume === 'function') ac.resume().catch(()=>{}); }catch{}
+  paused=false; running=true; last=0; acc=0; startTime=performance.now(); requestAnimationFrame(tick);
+}
 function pause(){ paused = !paused; beep(paused?220:520, .05); }
 function restart(){ reset(); resize(); running=false; paused=false; acc=0; draw(); }
 
 startBtn.onclick = ()=> start();
 pauseBtn.onclick = ()=> pause();
 restartBtn.onclick = ()=> restart();
-playAgain.onclick = ()=>{ resultModal.classList.remove('active'); resultModal.setAttribute('aria-hidden','true'); restart(); start(); };
-closeModal.onclick = ()=>{ resultModal.classList.remove('active'); resultModal.setAttribute('aria-hidden','true'); };
+playAgain.onclick = ()=>{ closeModal(); restart(); start(); };
+closeModal.onclick = ()=>{ closeModal(); };
 
 themeEl.onchange = ()=>{ const t = themeEl.value; document.body.classList.toggle('light', t==='light'); save('theme', t); };
 muteBtn.onclick = ()=>{ muted = !muted; muteBtn.textContent = 'Sound: ' + (muted? 'Off':'On'); save('muted', muted); };
