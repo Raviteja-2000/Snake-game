@@ -81,6 +81,24 @@ const clamp = (v,min,max)=> v<min?min: v>max?max: v;
 const PREFERS_REDUCED = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 if (PREFERS_REDUCED) document.body.classList.add('reduced-motion');
 
+// Canvas color variables (populated from CSS variables)
+let CANVAS_BG = '#001100';
+let CANVAS_HEAD = '#7bf67b';
+let CANVAS_BODY = '#2b7f2b';
+let CANVAS_FOOD = '#a6ff4d';
+let PAUSE_OVERLAY = 'rgba(0,0,0,0.55)';
+let PAUSE_PIXEL = '#c8ffc8';
+
+function loadCanvasColors(){
+  const s = getComputedStyle(document.documentElement);
+  CANVAS_BG = (s.getPropertyValue('--canvas-bg') || CANVAS_BG).trim();
+  CANVAS_HEAD = (s.getPropertyValue('--canvas-head') || CANVAS_HEAD).trim();
+  CANVAS_BODY = (s.getPropertyValue('--canvas-body') || CANVAS_BODY).trim();
+  CANVAS_FOOD = (s.getPropertyValue('--canvas-food') || CANVAS_FOOD).trim();
+  PAUSE_OVERLAY = (s.getPropertyValue('--pause-overlay') || PAUSE_OVERLAY).trim();
+  PAUSE_PIXEL = (s.getPropertyValue('--pause-pixel') || PAUSE_PIXEL).trim();
+}
+
 // Resize: set canvas logical resolution to LOGICAL_W x LOGICAL_H and pick a CSS scale to fit container
 let _resizeTimer = null;
 function resize(){
@@ -228,11 +246,14 @@ function tick(now){
 }
 
 function draw(){
+  // ensure we have current colors (in case theme changed)
+  if(!CANVAS_BG) loadCanvasColors();
+
   ctx.clearRect(0,0,LOGICAL_W,LOGICAL_H);
-  const bg = '#001100';
-  const screenGreen = '#7bf67b';
-  const dimGreen = '#2b7f2b';
-  const foodCol = '#a6ff4d';
+  const bg = CANVAS_BG;
+  const screenHead = CANVAS_HEAD;
+  const dimBody = CANVAS_BODY;
+  const foodCol = CANVAS_FOOD;
   ctx.fillStyle = bg; ctx.fillRect(0,0,LOGICAL_W,LOGICAL_H);
 
   if (!document.body.classList.contains('reduced-motion')){
@@ -244,13 +265,13 @@ function draw(){
 
   for(let i=0;i<snake.length;i++){
     const p = snake[i];
-    ctx.fillStyle = (i===snake.length-1) ? screenGreen : dimGreen;
+    ctx.fillStyle = (i===snake.length-1) ? screenHead : dimBody;
     ctx.fillRect(p.x, p.y, 1, 1);
   }
 
   if(paused){
-    ctx.fillStyle = '#00000088'; ctx.fillRect(0,0,LOGICAL_W,LOGICAL_H);
-    ctx.fillStyle = '#c8ffc8';
+    ctx.fillStyle = PAUSE_OVERLAY; ctx.fillRect(0,0,LOGICAL_W,LOGICAL_H);
+    ctx.fillStyle = PAUSE_PIXEL;
     const cx = Math.floor(LOGICAL_W/2)-10, cy = Math.floor(LOGICAL_H/2)-1;
     for(let i=0;i<6;i++){ ctx.fillRect(cx + i*3, cy, 2, 2); }
   }
@@ -351,7 +372,7 @@ restartBtn.onclick = ()=> restart();
 playAgain.onclick = ()=>{ closeModal(); restart(); start(); };
 closeModalBtn.onclick = ()=>{ closeModal(); };
 
-themeEl.onchange = ()=>{ const t = themeEl.value; document.body.classList.toggle('light', t==='light'); save('theme', t); };
+themeEl.onchange = ()=>{ const t = themeEl.value; document.body.classList.toggle('light', t==='light'); save('theme', t); loadCanvasColors(); };
 muteBtn.onclick = ()=>{ muted = !muted; muteBtn.textContent = 'Sound: ' + (muted? 'Off':'On'); save('muted', muted); };
 modeEl.onchange = ()=> restart();
 speedRange.oninput = ()=>{ SPEED = clamp(parseInt(speedRange.value,10),1,12); speedView.textContent = SPEED+'x'; save('speed', SPEED); updateTickInterval(); };
@@ -365,5 +386,5 @@ helpBtn.onclick = ()=> alert('Eat food (+10). Avoid walls/tail. Controls: WASD/A
   SPEED = clamp(load('speed',1),1,12); speedRange.value = SPEED; speedView.textContent = SPEED+'x'; updateTickInterval();
   high = load('high',0); highEl.textContent = String(high);
   renderLB();
-  reset(); resize(); draw();
+  reset(); loadCanvasColors(); resize(); draw();
 })();
