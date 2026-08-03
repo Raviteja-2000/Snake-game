@@ -13,6 +13,7 @@
   <link rel="stylesheet" href="style.css" />
 </head>
 <body class="nokia">
+  <a class="skip-link" href="#game">Skip to game</a>
   <header class="topbar">
     <div class="brand">
       <span class="pill">BRS Enterprises</span>
@@ -24,7 +25,7 @@
       <button id="restartBtn" aria-label="Restart game">Restart</button>
       <label class="inline" aria-label="Game speed control">
         <span>Speed</span>
-        <input id="speed" type="range" min="1" max="6" value="1" aria-label="Adjust game speed" />
+        <input id="speed" type="range" min="1" max="12" value="1" aria-label="Adjust game speed" />
         <span id="speedView" class="mono" aria-live="polite">1x</span>
       </label>
       <select id="mode" aria-label="Select game mode">
@@ -44,11 +45,11 @@
       <div class="metrics">
         <div class="chip">
           <span>Score</span>
-          <strong id="score" aria-label="Current score">0</strong>
+          <strong id="score" aria-label="Current score" aria-live="polite">0</strong>
         </div>
         <div class="chip">
           <span>High</span>
-          <strong id="high" aria-label="High score">0</strong>
+          <strong id="high" aria-label="High score" aria-live="polite">0</strong>
         </div>
         <div class="chip">
           <span>Time</span>
@@ -56,13 +57,13 @@
         </div>
         <div class="chip">
           <span>Grid</span>
-          <strong id="gridSize" aria-label="Grid size">20×20</strong>
+          <strong id="gridSize" aria-label="Grid size">84×48</strong>
         </div>
       </div>
 
       <div class="canvas-wrap" id="canvasWrap">
         <!-- keep id `game` for backward compatibility; logical resolution is handled by script.js -->
-        <canvas id="game" width="480" height="480" aria-label="Snake game canvas"></canvas>
+        <canvas id="game" width="84" height="48" aria-label="Snake game canvas" tabindex="0"></canvas>
         <div class="grid-overlay" id="gridOverlay" aria-hidden="true"></div>
         <div class="hud-fab">
           <button class="fab" id="helpBtn" title="Help" aria-label="Show help">?</button>
@@ -94,7 +95,7 @@
     </aside>
   </main>
 
-  <div class="modal" id="resultModal" aria-hidden="true" role="dialog" aria-labelledby="resultTitle">
+  <div class="modal" id="resultModal" aria-hidden="true" role="dialog" aria-labelledby="resultTitle" aria-modal="true" tabindex="-1">
     <div class="card">
       <h2 id="resultTitle">Game Over</h2>
       <div id="resultSubtitle" class="muted"></div>
