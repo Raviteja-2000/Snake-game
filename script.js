@@ -24,7 +24,7 @@ const finalScore = document.getElementById('finalScore');
 const finalLen = document.getElementById('finalLen');
 const finalTime = document.getElementById('finalTime');
 const playAgain = document.getElementById('playAgain');
-const closeModal = document.getElementById('closeModal');
+const closeModalBtn = document.getElementById('closeModal');
 const lbEl = document.getElementById('leaderboard');
 const canvasWrap = document.getElementById('canvasWrap');
 
@@ -349,7 +349,7 @@ startBtn.onclick = ()=> start();
 pauseBtn.onclick = ()=> pause();
 restartBtn.onclick = ()=> restart();
 playAgain.onclick = ()=>{ closeModal(); restart(); start(); };
-closeModal.onclick = ()=>{ closeModal(); };
+closeModalBtn.onclick = ()=>{ closeModal(); };
 
 themeEl.onchange = ()=>{ const t = themeEl.value; document.body.classList.toggle('light', t==='light'); save('theme', t); };
 muteBtn.onclick = ()=>{ muted = !muted; muteBtn.textContent = 'Sound: ' + (muted? 'Off':'On'); save('muted', muted); };
