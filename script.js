@@ -82,12 +82,13 @@ const PREFERS_REDUCED = window.matchMedia && window.matchMedia('(prefers-reduced
 if (PREFERS_REDUCED) document.body.classList.add('reduced-motion');
 
 // Canvas color variables (populated from CSS variables)
-let CANVAS_BG = '#001100';
-let CANVAS_HEAD = '#7bf67b';
-let CANVAS_BODY = '#2b7f2b';
-let CANVAS_FOOD = '#a6ff4d';
-let PAUSE_OVERLAY = 'rgba(0,0,0,0.55)';
-let PAUSE_PIXEL = '#c8ffc8';
+// INIT AS EMPTY STRINGS SO loadCanvasColors() MUST POPULATE THEM DURING BOOT (Option 2)
+let CANVAS_BG = '';
+let CANVAS_HEAD = '';
+let CANVAS_BODY = '';
+let CANVAS_FOOD = '';
+let PAUSE_OVERLAY = '';
+let PAUSE_PIXEL = '';
 
 function loadCanvasColors(){
   // Try to read from the body (so body.nokia overrides are captured), then fall back to :root
@@ -104,6 +105,13 @@ function loadCanvasColors(){
     // if we got a canvas-bg from this element, assume we've found the effective set and stop
     if(vbg) break;
   }
+  // Provide safe fallbacks in case CSS vars were not found (prevents drawing errors)
+  if(!CANVAS_BG) CANVAS_BG = '#071020';
+  if(!CANVAS_HEAD) CANVAS_HEAD = '#7ae1ff';
+  if(!CANVAS_BODY) CANVAS_BODY = '#3a77b8';
+  if(!CANVAS_FOOD) CANVAS_FOOD = '#ffd166';
+  if(!PAUSE_OVERLAY) PAUSE_OVERLAY = 'rgba(0,0,0,0.55)';
+  if(!PAUSE_PIXEL) PAUSE_PIXEL = '#cfeaff';
 }
 
 // Resize: set canvas logical resolution to LOGICAL_W x LOGICAL_H and pick a CSS scale to fit container
@@ -253,7 +261,7 @@ function tick(now){
 }
 
 function draw(){
-  // ensure we have current colors (in case theme changed)
+  // ensure we have current colors (in case theme changed) — loader runs at boot and when theme changes
   if(!CANVAS_BG) loadCanvasColors();
 
   ctx.clearRect(0,0,LOGICAL_W,LOGICAL_H);
