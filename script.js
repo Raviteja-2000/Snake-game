@@ -1,8 +1,12 @@
 // Nokia-authenticity final patches: safe storage, merged keydown, audio resume, modal focus trap, debounce resize, reduced-motion handling, improved leaderboard
 
+// Grab the canvas element safely — guard against missing DOM during early execution
 const canvas = document.getElementById('game');
-const ctx = canvas.getContext('2d');
+if (!canvas) { console.error('Canvas element #game not found'); }
+const ctx = canvas ? canvas.getContext('2d') : null;
+if (canvas) { canvas.style.zIndex = 2; }
 const gridOverlay = document.getElementById('gridOverlay');
+if (gridOverlay) { gridOverlay.style.zIndex = 1; gridOverlay.style.pointerEvents = 'none'; }
 const startBtn = document.getElementById('startBtn');
 const pauseBtn = document.getElementById('pauseBtn');
 const restartBtn = document.getElementById('restartBtn');
@@ -117,6 +121,7 @@ function loadCanvasColors(){
 // Resize: set canvas logical resolution to LOGICAL_W x LOGICAL_H and pick a CSS scale to fit container
 let _resizeTimer = null;
 function resize(){
+  if (!canvas || !ctx) return;
   const availW = canvasWrap.clientWidth;
   const availH = canvasWrap.clientHeight;
   const maxScale = Math.floor(Math.min(availW / LOGICAL_W, availH / LOGICAL_H)) || 1;
@@ -132,7 +137,7 @@ function resize(){
   if (ctx.imageSmoothingEnabled !== undefined) ctx.imageSmoothingEnabled = false;
 
   // update overlay grid to match logical cells
-  gridOverlay.style.backgroundSize = `calc(100%/${LOGICAL_W}) calc(100%/${LOGICAL_H}), calc(100%/${LOGICAL_W}) calc(100%/${LOGICAL_H})`;
+  if (gridOverlay) gridOverlay.style.backgroundSize = `calc(100%/${LOGICAL_W}) calc(100%/${LOGICAL_H}), calc(100%/${LOGICAL_W}) calc(100%/${LOGICAL_H})`;
 
   draw();
 }
@@ -261,6 +266,7 @@ function tick(now){
 }
 
 function draw(){
+  if (!ctx) return; // guard
   // ensure we have current colors (in case theme changed) — loader runs at boot and when theme changes
   if(!CANVAS_BG) loadCanvasColors();
 
@@ -275,6 +281,9 @@ function draw(){
     ctx.fillStyle = 'rgba(0,0,0,0.06)';
     for(let y=0;y<LOGICAL_H;y+=2){ ctx.fillRect(0,y,LOGICAL_W,1); }
   }
+
+  // DIAGNOSTIC: small visible pixel to confirm draw runs
+  ctx.fillStyle = '#ff00ff'; ctx.fillRect(0,0,4,4);
 
   if(food){ ctx.fillStyle = foodCol; ctx.fillRect(food.x, food.y, 1, 1); }
 
@@ -347,7 +356,7 @@ document.addEventListener('keydown', (e) => {
 }, { passive: false });
 
 // d-pad
-dpad.addEventListener('click', (e)=>{
+if (dpad) dpad.addEventListener('click', (e)=>{
   if(e.target.tagName !== 'BUTTON') return;
   const m = {up:{x:0,y:-1}, down:{x:0,y:1}, left:{x:-1,y:0}, right:{x:1,y:0}};
   const nd = m[e.target.getAttribute('data-dir')];
@@ -381,25 +390,35 @@ function start(){
 function pause(){ paused = !paused; beep(paused?220:520, .05); }
 function restart(){ reset(); resize(); running=false; paused=false; acc=0; draw(); }
 
-startBtn.onclick = ()=> start();
-pauseBtn.onclick = ()=> pause();
-restartBtn.onclick = ()=> restart();
-playAgain.onclick = ()=>{ closeModal(); restart(); start(); };
-closeModalBtn.onclick = ()=>{ closeModal(); };
+if (startBtn) startBtn.onclick = ()=> start();
+if (pauseBtn) pauseBtn.onclick = ()=> pause();
+if (restartBtn) restartBtn.onclick = ()=> restart();
+if (playAgain) playAgain.onclick = ()=>{ closeModal(); restart(); start(); };
+if (closeModalBtn) closeModalBtn.onclick = ()=>{ closeModal(); };
 
-themeEl.onchange = ()=>{ const t = themeEl.value; document.body.classList.toggle('light', t==='light'); save('theme', t); loadCanvasColors(); };
-muteBtn.onclick = ()=>{ muted = !muted; muteBtn.textContent = 'Sound: ' + (muted? 'Off':'On'); save('muted', muted); };
-modeEl.onchange = ()=> restart();
-speedRange.oninput = ()=>{ SPEED = clamp(parseInt(speedRange.value,10),1,12); speedView.textContent = SPEED+'x'; save('speed', SPEED); updateTickInterval(); };
-helpBtn.onclick = ()=> alert('Eat food (+10). Avoid walls/tail. Controls: WASD/Arrows/Swipe/D-Pad. Space = Pause. Scores saved locally.');
+if (themeEl) themeEl.onchange = ()=>{ const t = themeEl.value; document.body.classList.toggle('light', t==='light'); save('theme', t); loadCanvasColors(); };
+if (muteBtn) muteBtn.onclick = ()=>{ muted = !muted; muteBtn.textContent = 'Sound: ' + (muted? 'Off':'On'); save('muted', muted); };
+if (modeEl) modeEl.onchange = ()=> restart();
+if (speedRange) speedRange.oninput = ()=>{ SPEED = clamp(parseInt(speedRange.value,10),1,12); speedView.textContent = SPEED+'x'; save('speed', SPEED); updateTickInterval(); };
+if (helpBtn) helpBtn.onclick = ()=> alert('Eat food (+10). Avoid walls/tail. Controls: WASD/Arrows/Swipe/D-Pad. Space = Pause. Scores saved locally.');
 
 // boot
-(function boot(){
+function boot(){
+  console.log('boot starting');
   document.querySelector('.brand .pill').textContent = BRAND;
-  const theme = load('theme','dark'); themeEl.value = theme; document.body.classList.toggle('light', theme==='light');
-  muted = !!load('muted', false); muteBtn.textContent = 'Sound: ' + (muted? 'Off':'On');
-  SPEED = clamp(load('speed',1),1,12); speedRange.value = SPEED; speedView.textContent = SPEED+'x'; updateTickInterval();
-  high = load('high',0); highEl.textContent = String(high);
+  const theme = load('theme','dark'); if (themeEl) themeEl.value = theme; document.body.classList.toggle('light', theme==='light');
+  muted = !!load('muted', false); if (muteBtn) muteBtn.textContent = 'Sound: ' + (muted? 'Off':'On');
+  SPEED = clamp(load('speed',1),1,12); if (speedRange) speedRange.value = SPEED; if (speedView) speedView.textContent = SPEED+'x'; updateTickInterval();
+  high = load('high',0); if (highEl) highEl.textContent = String(high);
   renderLB();
   reset(); loadCanvasColors(); resize(); draw();
-})();
+  console.log('boot complete — snake:', snake, 'food:', food, 'ctx?', !!ctx);
+}
+
+// Run boot after DOMContentLoaded to ensure all elements/styles available
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', boot);
+} else {
+  // DOM already ready
+  setTimeout(boot, 0);
+}
