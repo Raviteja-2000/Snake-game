@@ -4,9 +4,7 @@
 const canvas = document.getElementById('game');
 if (!canvas) { console.error('Canvas element #game not found'); }
 const ctx = canvas ? canvas.getContext('2d') : null;
-if (canvas) { canvas.style.zIndex = 3; }
 const gridOverlay = document.getElementById('gridOverlay');
-if (gridOverlay) { gridOverlay.style.zIndex = 2; gridOverlay.style.pointerEvents = 'none'; }
 const startBtn = document.getElementById('startBtn');
 const pauseBtn = document.getElementById('pauseBtn');
 const restartBtn = document.getElementById('restartBtn');
