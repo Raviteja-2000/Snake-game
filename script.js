@@ -4,9 +4,9 @@
 const canvas = document.getElementById('game');
 if (!canvas) { console.error('Canvas element #game not found'); }
 const ctx = canvas ? canvas.getContext('2d') : null;
-if (canvas) { canvas.style.zIndex = 2; }
+if (canvas) { canvas.style.zIndex = 3; }
 const gridOverlay = document.getElementById('gridOverlay');
-if (gridOverlay) { gridOverlay.style.zIndex = 1; gridOverlay.style.pointerEvents = 'none'; }
+if (gridOverlay) { gridOverlay.style.zIndex = 2; gridOverlay.style.pointerEvents = 'none'; }
 const startBtn = document.getElementById('startBtn');
 const pauseBtn = document.getElementById('pauseBtn');
 const restartBtn = document.getElementById('restartBtn');
@@ -145,6 +145,9 @@ function resize(){
 window.addEventListener('resize', () => { clearTimeout(_resizeTimer); _resizeTimer = setTimeout(resize, 120); }, { passive: true });
 window.addEventListener('orientationchange', () => { clearTimeout(_resizeTimer); _resizeTimer = setTimeout(resize, 150); }, { passive: true });
 
+// Cleanup timer on page unload (prevents memory leaks in SPAs)
+window.addEventListener('beforeunload', () => { clearTimeout(_resizeTimer); });
+
 // Visibility
 document.addEventListener('visibilitychange', () => {
   if(document.hidden && running && !paused) pause();
@@ -176,7 +179,7 @@ function beep(freq=880, duration=0.06, type='square', gainVal=0.08){
 function soundEat(){ beep(1100, 0.06, 'square', 0.08); }
 function soundCrash(){ beep(200, 0.18, 'sawtooth', 0.12); }
 
-// leaderboard (local) - improved DOM structure
+// leaderboard (local) - improved DOM structure with ARIA roles
 function getLB(){ return load('lb', []); }
 function setLB(arr){ save('lb', arr.slice(0,10)); renderLB(); }
 function pushLB(item){ const arr = getLB(); arr.push(item); arr.sort((a,b)=> b.score - a.score); setLB(arr); }
@@ -184,9 +187,20 @@ function renderLB(){
   const arr = getLB(); lbEl.innerHTML = '';
   if(!arr.length){ lbEl.innerHTML = '<div class="muted">No scores yet</div>'; return; }
   arr.forEach((r,i)=>{
-    const row = document.createElement('div'); row.className = 'lb-row';
-    const label = document.createElement('div'); label.className='lb-label'; label.textContent = `${i+1}. ${r.name || 'Player'}`;
-    const scoreDiv = document.createElement('div'); scoreDiv.className='lb-score'; scoreDiv.textContent = String(r.score);
+    const row = document.createElement('div'); 
+    row.className = 'lb-row';
+    row.setAttribute('role', 'row');
+    
+    const label = document.createElement('div'); 
+    label.className='lb-label'; 
+    label.setAttribute('role', 'cell');
+    label.textContent = `${i+1}. ${r.name || 'Player'}`;
+    
+    const scoreDiv = document.createElement('div'); 
+    scoreDiv.className='lb-score'; 
+    scoreDiv.setAttribute('role', 'cell');
+    scoreDiv.textContent = String(r.score);
+    
     row.append(label, scoreDiv);
     lbEl.append(row);
   });
@@ -219,6 +233,7 @@ function updateTickInterval(){
 }
 
 function gameTick(){
+  if (!running) return; // Guard against post-death ticks from accumulator
   if(!(nextDir.x === -dir.x && nextDir.y === -dir.y)) dir = nextDir;
   const head = { x: snake[snake.length-1].x + dir.x, y: snake[snake.length-1].y + dir.y };
 
@@ -281,9 +296,6 @@ function draw(){
     ctx.fillStyle = 'rgba(0,0,0,0.06)';
     for(let y=0;y<LOGICAL_H;y+=2){ ctx.fillRect(0,y,LOGICAL_W,1); }
   }
-
-  // DIAGNOSTIC: small visible pixel to confirm draw runs
-  ctx.fillStyle = '#ff00ff'; ctx.fillRect(0,0,4,4);
 
   if(food){ ctx.fillStyle = foodCol; ctx.fillRect(food.x, food.y, 1, 1); }
 
@@ -411,7 +423,7 @@ function boot(){
   SPEED = clamp(load('speed',1),1,12); if (speedRange) speedRange.value = SPEED; if (speedView) speedView.textContent = SPEED+'x'; updateTickInterval();
   high = load('high',0); if (highEl) highEl.textContent = String(high);
   renderLB();
-  reset(); loadCanvasColors(); resize(); draw();
+  loadCanvasColors(); reset(); resize(); draw();
   console.log('boot complete — snake:', snake, 'food:', food, 'ctx?', !!ctx);
 }
 
